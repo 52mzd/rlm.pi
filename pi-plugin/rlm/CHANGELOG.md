@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.25] — 2026-09-26
+
+### Fixed
+
+- **Per-print stdout budget — fair formatting + print-boundary marks** (`sandbox/py/worker.py`,
+  `core/answer.ts`). A headless run stalled in a read loop: one bulk print starved a later
+  targeted print because every `print()` in a block shared a single 800-char pool, and the old
+  elision marker taught a wrong mental model (800/~2K/4K numbers disagreeing across surfaces).
+  - `py/worker.py` + `guards.py`: a scaffold-injected wrapper over the real `print` builtin
+    (`print` is RESERVED) records a stdout offset after each call; exec results gain
+    `stdout_marks` plus a dedicated `nudges` field — huge-var hints no longer pollute stdout.
+    Protocol additions are backward compatible (absent marks = legacy single segment).
+  - `core/answer.ts`: every print segment now passes through verbatim up to
+    `stdoutVerbatimChars` (new `rlm.json` knob, default 4,000 — one number across surfaces,
+    aligned with the native `TOOL_RESULT_CAP`); a block whose kept total exceeds 4× that
+    collapses its middle prints (first/last survive, one bulk note). Marker wording lives once
+    in `glossary.ts`; the native `repl()` whole-body 4K cap is unchanged and surfaces the
+    nudges verbatim.
+  - Verified: new `test/phase-stdout-budget.ts` (incl. a real-sandbox incident pin: a print
+    after a 5K bulk print survives); full `test/smoke.ts` green; both tsconfigs clean.
+
+- **Field-audit hardening: skill-state, run-state fences, repl ergonomics**
+  (`config/skillstate.ts`, `core/run-state.ts`, `bridge/handlers/completion.ts`,
+  `tool/repl-tool.ts`).
+  - Skill-state stops distilling runtime file-touch facts into notes; legacy junk
+    ("read/edited <path>" — up to 80% of store contents) is filtered at `loadSkillState`.
+  - Run-state accepts field writes on existing `testedApproaches` entries; the fence-contract
+    example is fixed so model patches apply as written; patch rejections carry an actionable
+    hint.
+  - Sub-call completion falls back to the raw prompt when grounding alone overflows the
+    sub-call size cap — `map_files` chunks near 400K chars no longer error.
+  - `tasks.py`: Task dunders raise a message naming `await_task` on misuse.
+  - The `repl()` tool rejects empty code blocks up front; the delegation nudge fires only on
+    locate-then-dump, not when printing already-collected results.
+
+- **Repl failures are recorded; cancel keeps the sandbox alive** (`py/worker.py`,
+  `sandbox-manager.ts`, `bridge/handlers/`). Failed cells were stored as success, Esc wiped
+  REPL variables, and continuation notes were ranked on the token-cap header.
+  - Failed execs surface as failures instead of silent successes; continuation notes no longer
+    rank on the cap header.
+  - Cancel is cooperative: an interrupt stops the cell but the sandbox process — and its REPL
+    variables — survive.
+  - A provider stop halts the remaining items of a running batch (new
+    `bridge/handlers/batch-stop.ts`).
+  - An absent state fence no longer idles the Root Σ tracker (`core/root-state.ts`).
+
 ## [0.3.24] — 2026-09-21
 
 ### Fixed
