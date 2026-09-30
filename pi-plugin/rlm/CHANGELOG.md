@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.26] — 2026-09-30
+
+### Fixed
+
+- **Packaging: `@earendil-works/pi-agent-core` moved from `dependencies` to
+  `peerDependencies` with a `"*"` range** (`package.json`, #32). When the plugin was installed
+  as a pi extension, the host warned that a host-provided package was declared in
+  `dependencies` — npm installed a second, independent copy that could bypass the host's
+  module aliasing and break `instanceof` / type-identity checks across the
+  host↔extension boundary. The host already resolves the import to its own copy;
+  `pi-agent-core` now arrives transitively via `pi-coding-agent`. No runtime behavior change
+  for end users beyond the warning disappearing.
+
 ## [0.3.25] — 2026-09-26
 
 ### Fixed
